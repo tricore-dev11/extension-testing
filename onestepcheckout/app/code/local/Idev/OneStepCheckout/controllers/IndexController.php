@@ -42,7 +42,9 @@ class Idev_OneStepCheckout_IndexController extends Mage_Core_Controller_Front_Ac
         }
 
         Mage::getSingleton('checkout/session')->setCartWasUpdated(false);
-        Mage::getSingleton('customer/session')->setBeforeAuthUrl(Mage::getUrl('*/*/*', array('_secure'=>true)));
+        //@TODO: validate the necessity of this clause
+        //Mage::getSingleton('customer/session')->setBeforeAuthUrl(Mage::getUrl('*/*/*', array('_secure'=>true)));
+
 
         $this->loadLayout();
 

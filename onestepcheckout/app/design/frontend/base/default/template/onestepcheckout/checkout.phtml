@@ -964,25 +964,22 @@ if($$('div.input-error').length > 0) {
 
 Event.observe(window, 'load', function() {
     if ($$('div.shopping-cart-totals').length == 1) {
-    }
-    else    {
+    } else {
 
         already_placing_order = false;
         review = false;
         reviewmodal = false;
-
         /* Handle place order click event */
         $$('.onestepcheckout-place-order').each(function(elem){
             elem.observe('click', function(e)   {
                 Event.stop(e);
 
-               // First validate the form
+                // First validate the form
                 var form = new VarienForm('onestepcheckout-form');
 
-                if(!form.validator.validate())  {
+                if (!form.validator.validate()) {
                     Event.stop(e);
                 } else {
-
                     if(!already_placing_order && $$('.loading-ajax').length <= 0 ) {
                     <?php if(!empty($helper->settings['addressreview']['enable_addressreview'])):?>
                         var addressTemplates = {
@@ -1011,20 +1008,8 @@ Event.observe(window, 'load', function() {
                         }
                     <?php endif;?>
                         already_placing_order = true;
-
-                        var submitelement = $('onestepcheckout-place-order');
-                            /* Disable button to avoid multiple clicks */
-                            submitelement.removeClassName('orange').addClassName('grey');
-                            submitelement.disabled = true;
-
-                        var loaderelement = new Element('span').
-                            addClassName('onestepcheckout-place-order-loading').
-                            update('<?php echo $this->__('Please wait, processing your order...'); ?>');
-
-                        submitelement.parentNode.appendChild(loaderelement);
-
-                        /* Submit the form */
-                        $('onestepcheckout-form').submit();
+                        submitOsc($('onestepcheckout-form'), '<?php echo $this->getUrl('onestepcheckout/', array('_secure'=>true));?>', '<?php echo $this->__('Please wait, processing your order...'); ?>', '<img src="<?php echo $this->getSkinUrl('images/opc-ajax-loader.gif'); ?>" />');
+                        Event.stop(e);
                     }
                 }
             });

@@ -581,6 +581,33 @@ class Idev_OneStepCheckout_AjaxController extends Mage_Core_Controller_Front_Act
         $this->renderLayout();
     }
 
+    public function savePaymentAction(){
+        //support for iframe callback methods for authorizenet
+        $payment = $this->getRequest()->getPost('payment', false);
+        $iframeMethods = array('authorizenet_directpost');
+        if (! empty($payment['method']) && in_array($payment['method'],$iframeMethods)) {
+            try {
+                $html = Mage::app()->getLayout()
+                ->createBlock('directpost/form', 'payment.form.directpost')
+                ->setTemplate('onestepcheckout/hss/form.phtml')
+                ->setMethod($this->_getOnepage()->getQuote()->getPayment()->setMethod($payment['method'])->getMethodInstance())
+                ->setMethodCode($payment['method'])
+                ->toHtml();
+                $result['update_section'] = array('name' => 'paypaliframe',
+                'html' => $html);
+                $result['redirect'] = false;
+                $result['success'] = false;
+                $result['error'] = false;
+            } catch (Exception $e) {
+            }
+        }
+        Mage::getSingleton('checkout/session')->setCartWasUpdated(false);
+        Header('Content-Type: text/x-javascript');
+
+        echo Zend_Json::encode($result);
+        exit();
+    }
+
     public function set_methods_separateAction()
     {
         $helper = Mage::helper('onestepcheckout/checkout');

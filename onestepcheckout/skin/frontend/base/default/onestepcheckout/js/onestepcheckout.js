@@ -271,6 +271,152 @@ function get_totals_element()
 
 }
 
+function submitOsc(form, url, message, image){
+    window.oscurl = url;
+    window.oscimage = image;
+    window.oscmessage = message;
+    var submitelement = $('onestepcheckout-place-order');
+    var form = $('onestepcheckout-form');
+    var payment_method = $RF(form, 'payment[method]');
+    var parameters = {
+            payment_method: payment_method
+    }
+    parameters['payment[method]'] = payment_method;
+
+    if(payment_method == 'authorizenet_directpost'){
+
+        var request = new Ajax.Request(
+                window.oscurl + 'ajax/savePayment/',
+                {
+                    method: 'post',
+                    evalJS: 'force',
+                    onCreate: function(){
+                        buttonHandler(false, message, image);
+                        submitelement.fire('onestepcheckout-place-order:clicked',{message : 'onCreate', status : true});
+                    },
+                    onSuccess: function(transport){
+                        if (200 == transport.status){
+                            respns = transport.responseText.evalJSON(true);
+                            if (respns.error){
+                                submitelement.fire('onestepcheckout-place-order:clicked',{message : 'onSuccess', status : false});
+                                var form = new VarienForm('onestepcheckout-form');
+                                form.validator.validate();
+                                message = respns.messages.payment_method_error
+                                if(!message){
+                                    message = respns.messages
+                                }
+                                alert(message);
+                                buttonHandler(true, true, true);
+                            } else if (respns.success) {
+                                submitelement.fire('onestepcheckout-place-order:clicked',{message : 'onSuccess', status : true});
+                                location.assign(respns.messages.redirect);
+                                return;
+                            } else if (!respns.success){
+                                if(respns.messages && respns.messages.redirect && (respns.update_section && respns.update_section.name != 'paypaliframe')){
+                                    submitelement.fire('onestepcheckout-place-order:clicked',{message : 'onSuccess', status : true});
+                                    location.assign(respns.messages.redirect);
+                                    return;
+                                }
+                                if(respns.update_section.name == 'paypaliframe'){
+                                    $$('body')['0'].insert('<div id="paypaliframe_wrapper"></div>');
+                                    window.iframewrapper = $('paypaliframe_wrapper');
+                                    window.iframewrapper.insert(respns.update_section.html);
+                                    window.iframemodal = new Control.Modal(iframewrapper, {
+                                        overlayOpacity: 0.65,
+                                        fade: true,
+                                        fadeDuration: 0.3,
+                                        closeOnClick: false,
+                                        width: 300,
+                                        height: 200
+                                    });
+                                }
+                            }
+                        }
+                    },
+                    onFailure: function(transport){
+                        submitelement.fire('onestepcheckout-place-order:clicked',{message : 'onFailure', status : false});
+                        buttonHandler(true, true, true);
+                    },
+                    parameters: parameters
+                }
+            );
+    } else {
+        var request = new Ajax.Request(
+            url,
+            {
+                method: 'post',
+                evalJS: 'force',
+                onCreate: function(){
+                    buttonHandler(false, message, image);
+                    submitelement.fire('onestepcheckout-place-order:clicked',{message : 'onCreate', status : true});
+                },
+                onSuccess: function(transport){
+                    if (200 == transport.status){
+                        respns = transport.responseText.evalJSON(true);
+                        if (respns.error){
+                            submitelement.fire('onestepcheckout-place-order:clicked',{message : 'onSuccess', status : false});
+                            var form = new VarienForm('onestepcheckout-form');
+                            form.validator.validate();
+                            message = respns.messages.payment_method_error
+                            if(!message){
+                                message = respns.messages
+                            }
+                            alert(message);
+                            buttonHandler(true, true, true);
+                        } else if (respns.success) {
+                            submitelement.fire('onestepcheckout-place-order:clicked',{message : 'onSuccess', status : true});
+                            location.assign(respns.messages.redirect);
+                            return;
+                        } else if (!respns.success){
+                            if(respns.messages && respns.messages.redirect && (respns.update_section && respns.update_section.name != 'paypaliframe')){
+                                submitelement.fire('onestepcheckout-place-order:clicked',{message : 'onSuccess', status : true});
+                                location.assign(respns.messages.redirect);
+                                return;
+                            }
+                            if(respns.update_section.name == 'paypaliframe'){
+                                $$('body')['0'].insert('<div id="paypaliframe_wrapper"></div>');
+                                window.iframewrapper = $('paypaliframe_wrapper');
+                                window.iframewrapper.insert(respns.update_section.html);
+                                window.iframemodal = new Control.Modal(iframewrapper, {
+                                    overlayOpacity: 0.65,
+                                    fade: true,
+                                    fadeDuration: 0.3,
+                                    closeOnClick: false,
+                                    width: 555,
+                                    height: 500
+                                });
+                            }
+                        }
+                    }
+                },
+                onFailure: function(transport){
+                    submitelement.fire('onestepcheckout-place-order:clicked',{message : 'onFailure', status : false});
+                    buttonHandler(true, true, true);
+                },
+                parameters: Form.serialize(form)
+            }
+        );
+    }
+}
+
+function buttonHandler(status, message, image) {
+    var submitelement = $('onestepcheckout-place-order');
+
+    if (status) {
+        $$('.onestepcheckout-place-order-loading')[0].remove();
+        submitelement.removeClassName('grey').addClassName('orange');
+        submitelement.disabled = false;
+        window.already_placing_order = false;
+    } else {
+        submitelement.removeClassName('orange').addClassName('grey');
+        submitelement.disabled = true;
+        var loaderelement = new Element('div').
+               addClassName('onestepcheckout-place-order-loading').
+               update(message);
+        submitelement.parentNode.appendChild(loaderelement);
+    }
+}
+
 function get_save_methods_function(url, update_payments)
 {
 
@@ -983,3 +1129,17 @@ var Payment = Class.create();
         });
     }
 };
+
+function centinelWrap() {
+    CentinelAuthenticateController.success = CentinelAuthenticateController.success.wrap(function(origSaveMethod){
+        buttonHandler(true, true, true);
+        submitOsc($('onestepcheckout-form'), window.oscurl, window.oscmessage, window.oscimage);
+        window.iframemodal.close();
+        $('paypaliframe_wrapper').remove();
+    });
+    CentinelAuthenticateController.cancel = CentinelAuthenticateController.cancel.wrap(function(origSaveMethod){
+        buttonHandler(true, true, true);
+        window.iframemodal.close();
+        $('paypaliframe_wrapper').remove();
+    });
+}

@@ -48,6 +48,8 @@
         <reference name="head">
             <action method="setTitle" translate="title"><title>One Step Checkout</title></action>
             <action method="addItem"><type>skin_js</type><name>onestepcheckout/js/window.js</name></action>
+            <action method="addItem"><type>skin_js</type><name>onestepcheckout/js/directpost.js</name></action>
+            <action method="addJs"><script>mage/centinel.js</script></action>
             <action method="addItem"><type>skin_js</type><name>onestepcheckout/js/onestepcheckout.js</name></action>
             <action method="addCss"><stylesheet>onestepcheckout/onestepcheckout.css</stylesheet></action>
         </reference>
@@ -61,6 +63,12 @@
                     <action method="setMethodFormTemplate"><method>purchaseorder</method><template>payment/form/purchaseorder.phtml</template></action>
                 </block>
                 <block type="checkout/onepage_shipping_method_available" name="choose-shipping-method" template="onestepcheckout/shipping_method.phtml"/>
+
+                <block type="centinel/authentication" name="centinel.frame" template="centinel/authentication.phtml">
+                    <action method="addRelatedBlock"><blockId>checkout-review-submit</blockId></action>
+                    <action method="addRelatedBlock"><blockId>checkout-review-table-wrapper</blockId></action>
+                    <action method="setAuthenticationStartMode"><mode>instant</mode></action>
+                </block>
             </block>
         </reference>
         <reference name="before_body_end">
