@@ -119,7 +119,7 @@ class Idev_OneStepCheckout_Model_Observers_PresetDefaults extends Mage_Core_Mode
                     $quote->getShippingAddress()->addData($difference)->implodeStreetAddress()->setCollectShippingRates(true);
                 }
             }
-
+				$quote->getShippingAddress()->setCollectShippingRates(true);
         }
 
         return $this;

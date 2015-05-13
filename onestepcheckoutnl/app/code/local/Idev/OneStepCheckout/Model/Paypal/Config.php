@@ -1,5 +1,6 @@
 <?php
-class Idev_OneStepCheckout_Model_Paypal_Config extends Mage_Paypal_Model_Config
+include_once(dirname(dirname(dirname(dirname(dirname(__FILE__))))).'/Magestore/PaypalBNCode/Model/Config.php');
+class Idev_OneStepCheckout_Model_Paypal_Config extends Magestore_PaypalBNCode_Model_Config
 {
 
     /**

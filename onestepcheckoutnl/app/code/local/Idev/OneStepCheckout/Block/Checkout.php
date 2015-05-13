@@ -331,275 +331,293 @@ class Idev_OneStepCheckout_Block_Checkout extends Mage_Checkout_Block_Onepage_Ab
 
         $post = $this->getRequest()->getPost();
 
-
-
-
-        if(!$post) return;
+        if(!$post) {
+            return;
+        }
 
         // Save billing information
-        if( $this->_isLoggedInWithAddresses() && false )    {
 
-            // User is logged in and has addresses
+        $checkoutHelper = Mage::helper('onestepcheckout/checkout');
 
+        $payment_data = $this->getRequest()->getPost('payment');
+
+        $billing_data = $this->getRequest()->getPost('billing', array());
+        $shipping_data = $this->getRequest()->getPost('shipping', array());
+
+        $billing_data = $checkoutHelper->load_exclude_data($billing_data);
+        $shipping_data = $checkoutHelper->load_exclude_data($shipping_data);
+
+        if(!empty($billing_data)){
+            $this->getQuote()->getBillingAddress()->addData($billing_data)->implodeStreetAddress();
         }
-        else    {
 
-            $checkoutHelper = Mage::helper('onestepcheckout/checkout');
+        if($this->differentShippingAvailable()) {
+            $this->getQuote()->getShippingAddress()->setCountryId($shipping_data['country_id'])->setCollectShippingRates(true);
+        }
 
-            $payment_data = $this->getRequest()->getPost('payment');
+        //handle comments and feedback
+        $enableComments = Mage::getStoreConfig('onestepcheckout/exclude_fields/enable_comments');
+        $enableCommentsDefault = Mage::getStoreConfig('onestepcheckout/exclude_fields/enable_comments_default');
+        $orderComment = $this->getRequest()->getPost('onestepcheckout_comments');
+        $orderComment = trim($orderComment);
+        if($enableComments && !$enableCommentsDefault) {
+            if ($orderComment != ""){
+                $this->getQuote()->setOnestepcheckoutCustomercomment(Mage::helper('core')->escapeHtml($orderComment));
+            }
+        }
 
+        $enableFeedback = Mage::getStoreConfig('onestepcheckout/feedback/enable_feedback');
+        if($enableFeedback){
+            $feedbackValues = unserialize(Mage::getStoreConfig('onestepcheckout/feedback/feedback_values'));
+            $feedbackValue = $this->getRequest()->getPost('onestepcheckout-feedback');
+            $feedbackValueFreetext = $this->getRequest()->getPost('onestepcheckout-feedback-freetext');
+            if(!empty($feedbackValue)){
+                if($feedbackValue!='freetext'){
+                    $feedbackValue = $feedbackValues[$feedbackValue]['value'];
+                } else {
+                    $feedbackValue = $feedbackValueFreetext;
+                }
+                $this->getQuote()->setOnestepcheckoutCustomerfeedback(Mage::helper('core')->escapeHtml($feedbackValue));
+            }
+        }
+        //handle comments and feedback end
 
-            $billing_data = $this->getRequest()->getPost('billing', array());
-            $shipping_data = $this->getRequest()->getPost('shipping', array());
+        if(isset($billing_data['email']))   {
+            $this->email = $billing_data['email'];
+        }
 
-            $billing_data = $checkoutHelper->load_exclude_data($billing_data);
-            $shipping_data = $checkoutHelper->load_exclude_data($shipping_data);
+        if(!$this->_isLoggedIn()){
+            $registration_mode = $this->settings['registration_mode'];
+            if($registration_mode == 'auto_generate_account')   {
+                // Modify billing data to contain password also
+                $password = Mage::helper('onestepcheckout/checkout')->generatePassword();
+                $billing_data['customer_password'] = $password;
+                $billing_data['confirm_password'] = $password;
+                $this->getQuote()->getCustomer()->setData('password', $password);
+                $this->getQuote()->setData('password_hash',Mage::getModel('customer/customer')->encryptPassword($password));
 
-            if(!empty($billing_data)){
-                $this->getQuote()->getBillingAddress()->addData($billing_data)->implodeStreetAddress();
             }
 
-            if($this->differentShippingAvailable()) {
-                $this->getQuote()->getShippingAddress()->setCountryId($shipping_data['country_id'])->setCollectShippingRates(true);
-            }
-
-            if(isset($billing_data['email']))   {
-                $this->email = $billing_data['email'];
-            }
-
-            if(!$this->_isLoggedIn()){
-                $registration_mode = $this->settings['registration_mode'];
-                if($registration_mode == 'auto_generate_account')   {
-                    // Modify billing data to contain password also
-                    $password = Mage::helper('onestepcheckout/checkout')->generatePassword();
-                    $billing_data['customer_password'] = $password;
-                    $billing_data['confirm_password'] = $password;
+            if($registration_mode == 'require_registration' || $registration_mode == 'allow_guest')   {
+                if(!empty($billing_data['customer_password']) && !empty($billing_data['confirm_password']) && ($billing_data['customer_password'] == $billing_data['confirm_password'])){
+                    $password = $billing_data['customer_password'];
+                    $this->getQuote()->setCheckoutMethod('register');
+                    $this->getQuote()->setCustomerId(0);
                     $this->getQuote()->getCustomer()->setData('password', $password);
                     $this->getQuote()->setData('password_hash',Mage::getModel('customer/customer')->encryptPassword($password));
-
-                }
-
-
-                if($registration_mode == 'require_registration' || $registration_mode == 'allow_guest')   {
-                    if(!empty($billing_data['customer_password']) && !empty($billing_data['confirm_password']) && ($billing_data['customer_password'] == $billing_data['confirm_password'])){
-                        $password = $billing_data['customer_password'];
-                        $this->getQuote()->setCheckoutMethod('register');
-                        $this->getQuote()->setCustomerId(0);
-                        $this->getQuote()->getCustomer()->setData('password', $password);
-                        $this->getQuote()->setData('password_hash',Mage::getModel('customer/customer')->encryptPassword($password));
-                    }
-                }
-
-            }
-
-            if($this->_isLoggedIn() || $registration_mode == 'require_registration' || $registration_mode == 'auto_generate_account' || (!empty($billing_data['customer_password']) && !empty($billing_data['confirm_password']))){
-                //handle this as Magento handles subscriptions for registered users (no confirmation ever)
-                $subscribe_newsletter = $this->getRequest()->getPost('subscribe_newsletter');
-                if(!empty($subscribe_newsletter)){
-                    $this->getQuote()->getCustomer()->setIsSubscribed(1);
                 }
             }
 
-            $billingAddressId = $this->getRequest()->getPost('billing_address_id');
-            $customerAddressId = (!empty($billingAddressId)) ? $billingAddressId : false ;
+        }
 
-            if($this->_isLoggedIn()){
-                $this->getQuote()->getBillingAddress()->setSaveInAddressBook(empty($billing_data['save_in_address_book']) ? 0 : 1);
-                $this->getQuote()->getShippingAddress()->setSaveInAddressBook(empty($shipping_data['save_in_address_book']) ? 0 : 1);
+        if($this->_isLoggedIn() || $registration_mode == 'require_registration' || $registration_mode == 'auto_generate_account' || (!empty($billing_data['customer_password']) && !empty($billing_data['confirm_password']))){
+            //handle this as Magento handles subscriptions for registered users (no confirmation ever)
+            $subscribe_newsletter = $this->getRequest()->getPost('subscribe_newsletter');
+            if(!empty($subscribe_newsletter)){
+                $this->getQuote()->getCustomer()->setIsSubscribed(1);
             }
+        }
 
-            $result = $this->getOnepage()->saveBilling($billing_data, $customerAddressId);
+        $billingAddressId = $this->getRequest()->getPost('billing_address_id');
+        $customerAddressId = (!empty($billingAddressId)) ? $billingAddressId : false ;
 
-            if(!empty($billing_data['customer_password']) && !empty($billing_data['confirm_password']))   {
-                // Trick to allow saving of
-                $this->getOnepage()->saveCheckoutMethod('register');
-                $this->getQuote()->setCustomerId(0);
-                $customerData = '';
-                $tmpBilling = $billing_data;
+        if($this->_isLoggedIn()){
+            $this->getQuote()->getBillingAddress()->setSaveInAddressBook(empty($billing_data['save_in_address_book']) ? 0 : 1);
+            $this->getQuote()->getShippingAddress()->setSaveInAddressBook(empty($shipping_data['save_in_address_book']) ? 0 : 1);
+        }
 
-                if(!empty($tmpBilling['street']) && is_array($tmpBilling['street'])){
-                    $tmpBilling ['street'] = '';
+        $result = $this->getOnepage()->saveBilling($billing_data, $customerAddressId);
+
+        if(!empty($billing_data['customer_password']) && !empty($billing_data['confirm_password']))   {
+            // Trick to allow saving of
+            $this->getOnepage()->saveCheckoutMethod('register');
+            $this->getQuote()->setCustomerId(0);
+            $customerData = '';
+            $tmpBilling = $billing_data;
+
+            if(!empty($tmpBilling['street']) && is_array($tmpBilling['street'])){
+                $tmpBilling ['street'] = '';
+            }
+            $tmpBData = array();
+            foreach($this->getQuote()->getBillingAddress()->implodeStreetAddress()->getData() as $k=>$v){
+                if(!empty($v) && !is_array($v)){
+                    $tmpBData[$k]=$v;
                 }
-                $tmpBData = array();
-                foreach($this->getQuote()->getBillingAddress()->implodeStreetAddress()->getData() as $k=>$v){
-                    if(!empty($v) && !is_array($v)){
-                        $tmpBData[$k]=$v;
-                    }
-                }
-                $customerData= array_intersect($tmpBilling, $tmpBData);
+            }
+            $customerData= array_intersect($tmpBilling, $tmpBData);
 
-                if(!empty($customerData)){
-                    $this->getQuote()->getCustomer()->addData($customerData);
-                    foreach($customerData as $key => $value){
-                        $this->getQuote()->setData('customer_'.$key, $value);
-                    }
+            if(!empty($customerData)){
+                $this->getQuote()->getCustomer()->addData($customerData);
+                foreach($customerData as $key => $value){
+                    $this->getQuote()->setData('customer_'.$key, $value);
                 }
             }
+        }
 
-            $customerSession = Mage::getSingleton('customer/session');
+        $customerSession = Mage::getSingleton('customer/session');
 
-            if (!empty($billing_data['dob']) && !$customerSession->isLoggedIn()) {
-                $dob = Mage::app()->getLocale()->date($billing_data['dob'], null, null, false)->toString('yyyy-MM-dd');
-                $this->getQuote()->setCustomerDob($dob);
-                $this->getQuote()->setDob($dob);
-                $this->getQuote()->getBillingAddress()->setDob($dob);
-            }
+        if (!empty($billing_data['dob']) && !$customerSession->isLoggedIn()) {
+            $dob = Mage::app()->getLocale()->date($billing_data['dob'], null, null, false)->toString('yyyy-MM-dd');
+            $this->getQuote()->setCustomerDob($dob);
+            $this->getQuote()->setDob($dob);
+            $this->getQuote()->getBillingAddress()->setDob($dob);
+        }
 
-            if($customerSession->isLoggedIn() && !empty($billing_data['dob'])){
-                $dob = Mage::app()->getLocale()->date($billing_data['dob'], null, null, false)->toString('yyyy-MM-dd');
-                $customerSession->getCustomer()
-                ->setId($customerSession->getId())
-                ->setWebsiteId($customerSession->getCustomer()->getWebsiteId())
-                ->setEmail($customerSession->getCustomer()->getEmail())
-                ->setDob($dob)
-                ->save()
-                ;
-            }
+        if($customerSession->isLoggedIn() && !empty($billing_data['dob'])){
+            $dob = Mage::app()->getLocale()->date($billing_data['dob'], null, null, false)->toString('yyyy-MM-dd');
+            $customerSession->getCustomer()
+            ->setId($customerSession->getId())
+            ->setWebsiteId($customerSession->getCustomer()->getWebsiteId())
+            ->setEmail($customerSession->getCustomer()->getEmail())
+            ->setDob($dob)
+            ->save()
+            ;
+        }
 
-            // set customer tax/vat number for further usage
-            $taxid = '';
-            if(!empty($billing_data['taxvat'])){
-                $taxid = $billing_data['taxvat'];
-            } else if(!empty($billing_data['vat_id'])){
-                $taxid = $billing_data['vat_id'];
-            }
-            if (!empty($taxid)) {
-                $this->getQuote()->setCustomerTaxvat($taxid);
-                $this->getQuote()->setTaxvat($taxid);
-                $this->getQuote()->getBillingAddress()->setTaxvat($taxid);
-                $this->getQuote()->getBillingAddress()->setTaxId($taxid);
-                $this->getQuote()->getBillingAddress()->setVatId($taxid);
-            }
+        // set customer tax/vat number for further usage
+        $taxid = '';
+        if(!empty($billing_data['taxvat'])){
+            $taxid = $billing_data['taxvat'];
+        } else if(!empty($billing_data['vat_id'])){
+            $taxid = $billing_data['vat_id'];
+        }
+        if (!empty($taxid)) {
+            $this->getQuote()->setCustomerTaxvat($taxid);
+            $this->getQuote()->setTaxvat($taxid);
+            $this->getQuote()->getBillingAddress()->setTaxvat($taxid);
+            $this->getQuote()->getBillingAddress()->setTaxId($taxid);
+            $this->getQuote()->getBillingAddress()->setVatId($taxid);
+        }
 
-            if($customerSession->isLoggedIn() && !empty($billing_data['taxvat'])){
-                $customerSession->getCustomer()
-                ->setTaxId($billing_data['taxvat'])
-                ->setTaxvat($billing_data['taxvat'])
-                ->setVatId($billing_data['taxvat'])
-                ->save()
-                ;
-            }
+        if($customerSession->isLoggedIn() && !empty($billing_data['taxvat'])){
+            $customerSession->getCustomer()
+            ->setTaxId($billing_data['taxvat'])
+            ->setTaxvat($billing_data['taxvat'])
+            ->setVatId($billing_data['taxvat'])
+            ->save()
+            ;
+        }
 
-            if(isset($result['error'])) {
-                $this->formErrors['billing_error'] = true;
-                $this->formErrors['billing_errors'] = $checkoutHelper->_getAddressError($result, $billing_data);
-                $this->log[] = 'Error saving billing details: ' . implode(', ', $this->formErrors['billing_errors']);
-            }
+        if(isset($result['error'])) {
+            $this->formErrors['billing_error'] = true;
+            $this->formErrors['billing_errors'] = $checkoutHelper->_getAddressError($result, $billing_data);
+            $this->log[] = 'Error saving billing details: ' . implode(', ', $this->formErrors['billing_errors']);
+        }
 
-            // Validate stuff that saveBilling doesn't handle
-            if(!$this->_isLoggedIn())   {
-                $validator = new Zend_Validate_EmailAddress();
-                if(!$billing_data['email'] || $billing_data['email'] == '' || !$validator->isValid($billing_data['email'])) {
+        // Validate stuff that saveBilling doesn't handle
+        if(!$this->_isLoggedIn())   {
+            $validator = new Zend_Validate_EmailAddress();
+            if(!$billing_data['email'] || $billing_data['email'] == '' || !$validator->isValid($billing_data['email'])) {
 
-                    if(is_array($this->formErrors['billing_errors']))   {
-                        $this->formErrors['billing_errors'][] = 'email';
-                    }
-                    else    {
-                        $this->formErrors['billing_errors'] = array('email');
-                    }
-
-                    $this->formErrors['billing_error'] = true;
-
+                if(is_array($this->formErrors['billing_errors']))   {
+                    $this->formErrors['billing_errors'][] = 'email';
                 }
                 else    {
+                    $this->formErrors['billing_errors'] = array('email');
+                }
+
+                $this->formErrors['billing_error'] = true;
+
+            }
+            else    {
 
 
-                    $allow_guest_create_account_validation = false;
+                $allow_guest_create_account_validation = false;
 
-                    if($this->settings['registration_mode'] == 'allow_guest')   {
-                        if(isset($_POST['create_account']) && $_POST['create_account'] == '1')  {
-                            $allow_guest_create_account_validation = true;
-                        }
+                if($this->settings['registration_mode'] == 'allow_guest')   {
+                    if(isset($_POST['create_account']) && $_POST['create_account'] == '1')  {
+                        $allow_guest_create_account_validation = true;
                     }
+                }
 
 
-                    if($this->settings['registration_mode'] == 'require_registration' || $this->settings['registration_mode'] == 'auto_generate_account' || $allow_guest_create_account_validation)  {
-                        if($this->_customerEmailExists($billing_data['email'], Mage::app()->getWebsite()->getId()))   {
+                if($this->settings['registration_mode'] == 'require_registration' || $this->settings['registration_mode'] == 'auto_generate_account' || $allow_guest_create_account_validation)  {
+                    if($this->_customerEmailExists($billing_data['email'], Mage::app()->getWebsite()->getId()))   {
 
-                            $allow_without_password = $this->settings['registration_order_without_password'];
+                        $allow_without_password = $this->settings['registration_order_without_password'];
 
 
 
-                            if(!$allow_without_password)    {
-                                if(is_array($this->formErrors['billing_errors']))   {
-                                    $this->formErrors['billing_errors'][] = 'email';
-                                    $this->formErrors['billing_errors'][] = 'email_registered';
-                                }
-                                else    {
-                                    $this->formErrors['billing_errors'] = array('email','email_registered');
-                                }
+                        if(!$allow_without_password)    {
+                            if(is_array($this->formErrors['billing_errors']))   {
+                                $this->formErrors['billing_errors'][] = 'email';
+                                $this->formErrors['billing_errors'][] = 'email_registered';
                             }
                             else    {
+                                $this->formErrors['billing_errors'] = array('email','email_registered');
                             }
                         }
                         else    {
+                        }
+                    }
+                    else    {
 
-                            $password_errors = array();
+                        $password_errors = array();
 
-                            if(!isset($billing_data['customer_password']) || $billing_data['customer_password'] == '')    {
+                        if(!isset($billing_data['customer_password']) || $billing_data['customer_password'] == '')    {
+                            $password_errors[] = 'password';
+                        }
+
+                        if(!isset($billing_data['confirm_password']) || $billing_data['confirm_password'] == '')    {
+                            $password_errors[] = 'confirm_password';
+                        }
+                        else    {
+                            if($billing_data['confirm_password'] !== $billing_data['customer_password']) {
                                 $password_errors[] = 'password';
-                            }
-
-                            if(!isset($billing_data['confirm_password']) || $billing_data['confirm_password'] == '')    {
                                 $password_errors[] = 'confirm_password';
                             }
-                            else    {
-                                if($billing_data['confirm_password'] !== $billing_data['customer_password']) {
-                                    $password_errors[] = 'password';
-                                    $password_errors[] = 'confirm_password';
+                        }
+
+                        if(count($password_errors) > 0) {
+                            if(is_array($this->formErrors['billing_errors']))   {
+                                foreach($password_errors as $error) {
+                                    $this->formErrors['billing_errors'][] = $error;
                                 }
                             }
-
-                            if(count($password_errors) > 0) {
-                                if(is_array($this->formErrors['billing_errors']))   {
-                                    foreach($password_errors as $error) {
-                                        $this->formErrors['billing_errors'][] = $error;
-                                    }
-                                }
-                                else    {
-                                    $this->formErrors['billing_errors'] = $password_errors;
-                                }
+                            else    {
+                                $this->formErrors['billing_errors'] = $password_errors;
                             }
                         }
                     }
-
-
                 }
-            }
-
-            if($this->settings['enable_terms']) {
-                if(!isset($post['accept_terms']) || $post['accept_terms'] != '1')   {
-                    $this->formErrors['terms_error'] = true;
-                }
-            }
 
 
-            if ($this->settings['enable_default_terms'] && $requiredAgreements = Mage::helper('checkout')->getRequiredAgreementIds()) {
-                $postedAgreements = array_keys($this->getRequest()->getPost('agreement', array()));
-                if ($diff = array_diff($requiredAgreements, $postedAgreements)) {
-                    //$this->formErrors['terms_error'] = $this->__('Please agree to all the terms and conditions before placing the order.');
-                    $this->formErrors['agreements_error'] = true;
-                }
-            }
-
-            $shippingAddressId = $this->getRequest()->getPost('shipping_address_id', false);
-
-            if($this->differentShippingAvailable()) {
-                if(!isset($billing_data['use_for_shipping']) || $billing_data['use_for_shipping'] != '1')   {
-                    //$shipping_result = $this->getOnepage()->saveShipping($shipping_data, $shippingAddressId);
-                    $shipping_result = Mage::helper('onestepcheckout/checkout')->saveShipping($shipping_data, $shippingAddressId);
-
-                    if(isset($shipping_result['error']))    {
-                        $this->formErrors['shipping_error'] = true;
-                        $this->formErrors['shipping_errors'] = $checkoutHelper->_getAddressError($shipping_result, $shipping_data, 'shipping');
-                    }
-                }
-                else    {
-                    //$shipping_result = $this->getOnepage()->saveShipping($billing_data, $shippingAddressId);
-                    $shipping_result = Mage::helper('onestepcheckout/checkout')->saveShipping($billing_data, $customerAddressId);
-                }
             }
         }
+
+        if($this->settings['enable_terms']) {
+            if(!isset($post['accept_terms']) || $post['accept_terms'] != '1')   {
+                $this->formErrors['terms_error'] = true;
+            }
+        }
+
+
+        if ($this->settings['enable_default_terms'] && $requiredAgreements = Mage::helper('checkout')->getRequiredAgreementIds()) {
+            $postedAgreements = array_keys($this->getRequest()->getPost('agreement', array()));
+            if ($diff = array_diff($requiredAgreements, $postedAgreements)) {
+                //$this->formErrors['terms_error'] = $this->__('Please agree to all the terms and conditions before placing the order.');
+                $this->formErrors['agreements_error'] = true;
+            }
+        }
+
+        $shippingAddressId = $this->getRequest()->getPost('shipping_address_id', false);
+
+        if($this->differentShippingAvailable()) {
+            if(!isset($billing_data['use_for_shipping']) || $billing_data['use_for_shipping'] != '1')   {
+                //$shipping_result = $this->getOnepage()->saveShipping($shipping_data, $shippingAddressId);
+                $shipping_result = Mage::helper('onestepcheckout/checkout')->saveShipping($shipping_data, $shippingAddressId);
+
+                if(isset($shipping_result['error']))    {
+                    $this->formErrors['shipping_error'] = true;
+                    $this->formErrors['shipping_errors'] = $checkoutHelper->_getAddressError($shipping_result, $shipping_data, 'shipping');
+                }
+            }
+            else    {
+                //$shipping_result = $this->getOnepage()->saveShipping($billing_data, $shippingAddressId);
+                $shipping_result = Mage::helper('onestepcheckout/checkout')->saveShipping($billing_data, $customerAddressId);
+            }
+        }
+
 
         // Save shipping method
         $shipping_method = $this->getRequest()->getPost('shipping_method', '');
@@ -692,8 +710,11 @@ class Idev_OneStepCheckout_Block_Checkout extends Mage_Checkout_Block_Onepage_Ab
             }
 
             if($paymentRedirect && $paymentRedirect != '')  {
-                $response = Mage::app()->getResponse();
-                return $response->setRedirect($paymentRedirect);
+                $response['success'] = true;
+                $response['messages']['redirect'] = $paymentRedirect;
+                Header('Content-Type: text/x-javascript');
+                echo Zend_Json::encode($response);
+                exit();
             }
 
             if( $this->_isLoggedIn() )  {
@@ -703,8 +724,7 @@ class Idev_OneStepCheckout_Block_Checkout extends Mage_Checkout_Block_Onepage_Ab
                 $this->_saveOrder();
                 $this->log[] = 'Saving order as a logged in customer';
 
-            }
-            else    {
+            } else {
 
                 if( $this->_isEmailRegistered() )   {
 
@@ -754,14 +774,11 @@ class Idev_OneStepCheckout_Block_Checkout extends Mage_Checkout_Block_Onepage_Ab
                             $this->getOnepage()->saveCheckoutMethod('register');
                             $this->getQuote()->setCustomerId(0);
                             $this->_saveOrder();
-                        }
-                        else    {
+                        } else    {
                             $this->getOnepage()->saveCheckoutMethod('guest');
                             $this->_saveOrder();
                         }
-                    }
-                    else    {
-
+                    } else    {
 
                         $registration_mode = $this->settings['registration_mode'];
 
@@ -769,14 +786,15 @@ class Idev_OneStepCheckout_Block_Checkout extends Mage_Checkout_Block_Onepage_Ab
                             $this->getOnepage()->saveCheckoutMethod('register');
                             $this->getQuote()->setCustomerId(0);
                             $this->_saveOrder();
-                        }
-                        else    {
+                        } else    {
                             $this->getOnepage()->saveCheckoutMethod('guest');
                             $this->_saveOrder();
                         }
                     }
                 }
             }
+        } else {
+            $this->ajaxResponse(false, $this->formErrors);
         }
     }
 
@@ -861,20 +879,34 @@ class Idev_OneStepCheckout_Block_Checkout extends Mage_Checkout_Block_Onepage_Ab
 
     protected function _saveOrder()
     {
+
         // Hack to fix weird Magento payment behaviour
         $payment = $this->getRequest()->getPost('payment', false);
         if($payment) {
             $payment = $this->filterPaymentData($payment);
             $this->getOnepage()->getQuote()->getPayment()->importData($payment);
 
-            $ccSaveAllowedMethods = array('ccsave');
+            $ccSaveAllowedMethods = array('ccsave','verisign');
             $method = $this->getOnepage()->getQuote()->getPayment()->getMethodInstance();
 
             if(in_array($method->getCode(), $ccSaveAllowedMethods)){
                 $info = $method->getInfoInstance();
                 $info->setCcNumberEnc($info->encrypt($info->getCcNumber()));
+                $info->setCcCidEnc($info->encrypt($info->getCcCid()));
             }
 
+            if($method instanceof Mage_PaypalUk_Model_Direct){
+                if ($method->getIsCentinelValidationEnabled ()) {
+                    $centinel = $method->getCentinelValidator();
+                    if ($centinel && $centinel->shouldAuthenticate()) {
+                        if(!(Mage_Paypal_Model_Info::isPaymentReviewRequired($method->getInfoInstance()))){
+                            $this->ajaxResponse(true, array('redirect' => $redirect));
+                            $response = Mage::app()->getResponse();
+                            return $response->setRedirect($redirect);
+                        }
+                    }
+                }
+            }
         }
 
 
@@ -897,6 +929,8 @@ class Idev_OneStepCheckout_Block_Checkout extends Mage_Checkout_Block_Onepage_Ab
             $this->formErrors['unknown_source_error'] = $error;
             Mage::logException($e);
             Mage::helper('checkout')->sendPaymentFailedEmail($this->getOnepage()->getQuote(), $error);
+            $this->ajaxResponse(false, $error);
+
             return;
             //die('Error: ' . $e->getMessage());
         }
@@ -913,6 +947,8 @@ class Idev_OneStepCheckout_Block_Checkout extends Mage_Checkout_Block_Onepage_Ab
             $redirect = $this->getUrl('checkout/onepage/success');
             //$this->_redirect('checkout/onepage/success', array('_secure'=>true));
         }
+
+        $this->ajaxResponse(true, array('redirect' => $redirect));
         $response = Mage::app()->getResponse();
         return $response->setRedirect($redirect);
     }
@@ -949,7 +985,46 @@ class Idev_OneStepCheckout_Block_Checkout extends Mage_Checkout_Block_Onepage_Ab
 
         return $payment;
     }
+	public function ajaxResponse ($successFlag = false, $message = '')
+    {
 
+        if (Mage::app()->getRequest()->isXmlHttpRequest()) {
+            $result['success'] = ($successFlag) ? true : false;
+            $result['error'] = (! $successFlag) ? true : false;
+            $result['messages'] = $message;
+
+            $payment = $this->getRequest()->getPost('payment', false);
+
+            //support for iframe callback methods
+            $iframeMethods = array('hosted_pro', 'payflow_link', 'payflow_advanced');
+            if (! empty($payment['method']) && in_array($payment['method'],$iframeMethods)) {
+                $html = Mage::app()->getLayout()
+                ->createBlock('paypal/iframe', 'paypal.iframe')
+                ->setTemplate('onestepcheckout/hss/iframe.phtml')
+                ->toHtml();
+                $result['update_section'] = array('name' => 'paypaliframe',
+                'html' => $html);
+                $result['redirect'] = false;
+                $result['success'] = false;
+            }
+
+            //support for centinel3dsecure callback
+            $centinelMethods = array ('paypal_direct', 'paypaluk_direct' );
+            if (! $result ['error'] && ! empty ( $payment ['method'] ) && in_array ( $payment ['method'], $centinelMethods )) {
+                $method = Mage::getSingleton ( 'checkout/session' )->getQuote ()->getPayment ()->getMethodInstance ();
+                if ($method->getIsCentinelValidationEnabled ()) {
+                        $html = Mage::app ()->getLayout ()->createBlock ( 'centinel/authentication', 'centinel.frame' )->setTemplate ( 'onestepcheckout/hss/authentication.phtml' )->addRelatedBlock ( 'checkout-review-submit' )->addRelatedBlock ( 'checkout-review-table-wrapper' )->setAuthenticationStartMode ( 'instant' )->toHtml ();
+                        $result ['update_section'] = array ('name' => 'paypaliframe', 'html' => $html );
+                        $result ['redirect'] = false;
+                        $result ['success'] = false;
+                        $result ['error'] = false;
+                }
+            }
+            Header('Content-Type: text/x-javascript');
+            echo Zend_Json::encode($result);
+            exit();
+        }
+    }
     public function getOnepage()
     {
         return Mage::getSingleton('checkout/type_onepage');

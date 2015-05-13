@@ -364,19 +364,7 @@ class Idev_OneStepCheckout_AjaxController extends Mage_Core_Controller_Front_Act
     public function save_billingAction()
     {
         $helper = Mage::helper('onestepcheckout/checkout');
-		if($_SERVER['REMOTE_ADDR'] == '122.169.99.128')
-		{
-			/*echo "<pre>";
-				print_r($_REQUEST);
-			if($_REQUEST['payment_method'] == '')
-				$_REQUEST['payment_method'] = 'paypal_express';
-			if($_REQUEST['payment']['method'] == '')
-				$_REQUEST['payment']['method'] = 'paypal_express';
-						
-			echo "<pre>Updated : ";
-				print_r($_REQUEST);			
-			exit;*/	
-		}
+
         $billing_data = $this->getRequest()->getPost('billing', array());
         $shipping_data = $this->getRequest()->getPost('shipping', array());
         $customerAddressId = $this->getRequest()->getPost('billing_address_id', false);
@@ -384,7 +372,7 @@ class Idev_OneStepCheckout_AjaxController extends Mage_Core_Controller_Front_Act
 
         $billing_data = $helper->load_exclude_data($billing_data);
         $shipping_data = $helper->load_exclude_data($shipping_data);
-		
+
         if(Mage::helper('customer')->isLoggedIn() && $helper->differentShippingAvailable()){
             if(!empty($customerAddressId)){
                 $billingAddress = Mage::getModel('customer/address')->load($customerAddressId);
@@ -399,7 +387,7 @@ class Idev_OneStepCheckout_AjaxController extends Mage_Core_Controller_Front_Act
                 }
             }
         }
-		
+
         if(!empty($billing_data['use_for_shipping'])) {
            $shipping_data = $billing_data;
         }
@@ -424,12 +412,12 @@ class Idev_OneStepCheckout_AjaxController extends Mage_Core_Controller_Front_Act
             $this->_getOnepage()->getQuote()->getBillingAddress()->setTaxId('');
             $this->_getOnepage()->getQuote()->getBillingAddress()->setVatId('');
         }
-		
+
         $this->_getOnepage()->getQuote()->getBillingAddress()->addData($billing_data)->implodeStreetAddress()->setCollectShippingRates(true);
         if(!$this->_getOnepage()->getQuote()->isVirtual() && !Mage::helper('customer')->isLoggedIn()){
             $this->_getOnepage()->getQuote()->getShippingAddress()->addData($shipping_data)->implodeStreetAddress()->setCollectShippingRates(true);
         }
-		
+
         $paymentMethod = $this->getRequest()->getPost('payment_method', false);
         $selectedMethod = $this->_getOnepage()->getQuote()->getPayment()->getMethod();
 
@@ -456,14 +444,14 @@ class Idev_OneStepCheckout_AjaxController extends Mage_Core_Controller_Front_Act
             }
         } catch (Exception $e) {
         }
-		
+
         $result = $this->_getOnepage()->saveBilling($billing_data, $customerAddressId);
-        
+
         if(Mage::helper('customer')->isLoggedIn()){
             $this->_getOnepage()->getQuote()->getBillingAddress()->setSaveInAddressBook(empty($billing_data['save_in_address_book']) ? 0 : 1);
             $this->_getOnepage()->getQuote()->getShippingAddress()->setSaveInAddressBook(empty($shipping_data['save_in_address_book']) ? 0 : 1);
         }
-		
+
         if($helper->differentShippingAvailable()) {
             if(empty($billing_data['use_for_shipping'])) {
                 $shipping_result = $helper->saveShipping($shipping_data, $shippingAddressId);
@@ -471,21 +459,17 @@ class Idev_OneStepCheckout_AjaxController extends Mage_Core_Controller_Front_Act
                 $shipping_result = $helper->saveShipping($billing_data, $customerAddressId);
             }
         }
+
         $shipping_method = $this->getRequest()->getPost('shipping_method', false);
-		
+
         if(!empty($shipping_method)) {
            $helper->saveShippingMethod($shipping_method);
         }
+
         if(!Mage::helper('customer')->isLoggedIn()){
             $this->_getOnepage()->getQuote()->setTotalsCollectedFlag(false)->collectTotals();
         }
-        /*if($_SERVER['REMOTE_ADDR'] == '122.169.99.128')
-		{
-			echo "<pre>AJAX : ";
-				print_r(Mage::getSingleton('checkout/type_onepage')->getQuote()->getShippingAddress()->getData());
-				print_r(Mage::getSingleton('checkout/type_onepage')->getQuote()->getBillingAddress()->getData());
-			exit;	
-		}*/
+
         $this->loadLayout(false);
 
         if(Mage::helper('onestepcheckout')->isEnterprise() && Mage::helper('customer')->isLoggedIn()){
@@ -528,7 +512,9 @@ class Idev_OneStepCheckout_AjaxController extends Mage_Core_Controller_Front_Act
                 ->getBlock('choose-payment-method')
                 ->append($giftcardScripts);
         }
+
         $this->renderLayout();
+
     }
 
     public function paymentrefreshAction()
@@ -594,7 +580,34 @@ class Idev_OneStepCheckout_AjaxController extends Mage_Core_Controller_Front_Act
 
         $this->renderLayout();
     }
+	
+	public function savePaymentAction(){
+        //support for iframe callback methods for authorizenet
+        $payment = $this->getRequest()->getPost('payment', false);
+        $iframeMethods = array('authorizenet_directpost');
+        if (! empty($payment['method']) && in_array($payment['method'],$iframeMethods)) {
+            try {
+                $html = Mage::app()->getLayout()
+                ->createBlock('directpost/form', 'payment.form.directpost')
+                ->setTemplate('onestepcheckout/hss/form.phtml')
+                ->setMethod($this->_getOnepage()->getQuote()->getPayment()->setMethod($payment['method'])->getMethodInstance())
+                ->setMethodCode($payment['method'])
+                ->toHtml();
+                $result['update_section'] = array('name' => 'paypaliframe',
+                'html' => $html);
+                $result['redirect'] = false;
+                $result['success'] = false;
+                $result['error'] = false;
+            } catch (Exception $e) {
+            }
+        }
+        Mage::getSingleton('checkout/session')->setCartWasUpdated(false);
+        Header('Content-Type: text/x-javascript');
 
+        echo Zend_Json::encode($result);
+        exit();
+    }
+    	
     public function set_methods_separateAction()
     {
         $helper = Mage::helper('onestepcheckout/checkout');
@@ -686,7 +699,7 @@ class Idev_OneStepCheckout_AjaxController extends Mage_Core_Controller_Front_Act
     {
         $helper = Mage::helper('onestepcheckout/checkout');
         $shipping_method = $this->getRequest()->getPost('shipping_method');
-		
+
         if($shipping_method != '')  {
             //$result = $this->_getOnepage()->saveShippingMethod($shipping_method);
             $helper->saveShippingMethod($shipping_method);

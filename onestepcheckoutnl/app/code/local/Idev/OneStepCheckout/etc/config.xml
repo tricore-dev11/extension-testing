@@ -114,6 +114,17 @@
                 </admin>
             </resources>
         </acl>
+        <events>
+            <controller_action_predispatch_adminhtml_sales_order_create_save>
+                <observers>
+                    <onestepcheckout_save_customercomment_admin>
+                        <type>model</type>
+                        <class>Idev_OneStepCheckout_Helper_Data</class>
+                        <method>setCustomerCommentAdmin</method>
+                    </onestepcheckout_save_customercomment_admin>
+                </observers>
+            </controller_action_predispatch_adminhtml_sales_order_create_save>
+        </events>
     </adminhtml>
     <global>
         <models>
@@ -127,9 +138,7 @@
             </sales>
             <paypal>
                 <rewrite>
-<!--
                     <config>Idev_OneStepCheckout_Model_Paypal_Config</config>
--->
                 </rewrite>
             </paypal>
         </models>
@@ -172,6 +181,9 @@
                 <rewrite>
                     <sales_order_view_items>Idev_OneStepCheckout_Block_Adminhtml_Sales_Order_View_Comment</sales_order_view_items>
                 </rewrite>
+                <rewrite>
+                    <sales_order_create_comment>Idev_OneStepCheckout_Block_Adminhtml_Sales_Order_Create_Comment</sales_order_create_comment>
+                </rewrite>
             </adminhtml>
         </blocks>
         <helpers>
@@ -182,6 +194,24 @@
                 </rewrite>
             </checkout>
         </helpers>
+         <fieldsets>
+            <sales_convert_quote>
+                <onestepcheckout_customercomment>
+                    <to_order>*</to_order>
+                </onestepcheckout_customercomment>
+                <onestepcheckout_customerfeedback>
+                    <to_order>*</to_order>
+                </onestepcheckout_customerfeedback>
+            </sales_convert_quote>
+            <sales_convert_order>
+                <onestepcheckout_customercomment>
+                    <to_quote>*</to_quote>
+                </onestepcheckout_customercomment>
+                <onestepcheckout_customerfeedback>
+                    <to_order>*</to_order>
+                </onestepcheckout_customerfeedback>
+            </sales_convert_order>
+        </fieldsets>
     </global>
     <default>
         <onestepcheckout>

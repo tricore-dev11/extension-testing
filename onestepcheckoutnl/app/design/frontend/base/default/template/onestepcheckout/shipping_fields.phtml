@@ -76,7 +76,7 @@ $shippingFields['country_id'] = '
 <?php if(!$this->settings['exclude_city']):?>
     <?php $shippingFields['city'] = '
         <div class="input-box input-city'.((in_array('city', $formErrors)) ? ' input-error' : '').'">
-            <label for="shipping:city">'.$this->__('SUBURB').' <span class="required">*</span></label><br/>
+            <label for="shipping:city">'.$this->__('City').' <span class="required">*</span></label><br/>
             <input type="text" name="shipping[city]" value="'.$dataHelper->clearDash($this->getQuote()->getShippingAddress()->getCity()).'" title="'.$this->__('City').'" class="required-entry input-text" id="shipping:city" />
         </div>';
     ?>

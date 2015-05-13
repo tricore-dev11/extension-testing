@@ -47,7 +47,18 @@ class Idev_OneStepCheckout_Helper_Data extends Mage_Core_Helper_Abstract
 
         }
     }
+	public function setCustomerCommentAdmin($observer)
+    {
+        $enableComments = Mage::getStoreConfig('onestepcheckout/exclude_fields/enable_comments');
+        $enableCommentsDefault = Mage::getStoreConfig('onestepcheckout/exclude_fields/enable_comments_default');
+        $enableFeedback = Mage::getStoreConfig('onestepcheckout/feedback/enable_feedback');
+        $orderComment = $this->_getRequest()->getPost('onestepcheckout_customercomment');
+        $orderComment = trim($orderComment);
 
+        if($enableComments && !$enableCommentsDefault && $orderComment) {
+            Mage::getSingleton('adminhtml/sales_order_create')->getQuote()->setOnestepcheckoutCustomercomment(Mage::helper('core')->escapeHtml($orderComment))->save();
+        }
+    }
     public function isRewriteCheckoutLinksEnabled()
     {
         return Mage::getStoreConfig('onestepcheckout/general/rewrite_checkout_links');

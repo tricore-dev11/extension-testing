@@ -66,7 +66,7 @@ $dataHelper = Mage::helper('onestepcheckout');
             }
             $billingFields['street'] = '
                 <div class="input-box input-address'.((in_array('address', $formErrors)) ? ' input-error' : '').'">
-                    <label for="billing:street1">'.$this->__('Address').' <span class="required">*</span></label><span style="color:red;">(Bitte beachten Sie, dass wir keine Packstationen beliefern können!)</span><br />
+                    <label for="billing:street1">'.$this->__('Address').' <span class="required">*</span></label><br />
                     '.$addressFields.'
                 </div>';
         ?>
@@ -103,7 +103,7 @@ $billingFields['country_id'] = '
 <?php if(!$this->settings['exclude_city']):?>
     <?php $billingFields['city'] = '
         <div class="input-box input-city'.((in_array('city', $formErrors)) ? ' input-error' : '').'">
-            <label for="billing:city">'.$this->__('SUBURB').' <span class="required">*</span></label><br/>
+            <label for="billing:city">'.$this->__('City').' <span class="required">*</span></label><br/>
             <input type="text" name="billing[city]" value="'.$dataHelper->clearDash($this->getQuote()->getBillingAddress()->getCity()).'" title="'.$this->__('City').'" class="required-entry input-text" id="billing:city" />
         </div>';
     ?>

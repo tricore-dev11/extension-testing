@@ -34,7 +34,6 @@ $helper = Mage::helper('onestepcheckout/checkout');
         <a id="onestepcheckout-login-link" href="javascript:void(0); return: false;"><?php echo $this->__('Already registered? Click here to login.'); ?></a>
     </p>
 <?php endif; ?>
-	<p style="font-weight: bold; color: red;">Sehr geehrter Kunde, wegen hoher Nachfrage wird unsere Website gerade umgestaltet, um die steigende Nachfrage optimal bedienen zu können. Im unwahrscheinlichen Falles, dass beim Bestellen irgendwelche technischen Probleme auftauchen, dann  <a target="_blank" href="<?php echo $this->getBaseUrl(); ?>contacts">kontaktieren Sie uns bitte hier.</a></p>
 
 <?php if(isset($this->formErrors['unknown_source_error'])): ?>
 <div class="onestepcheckout-error">
@@ -1012,20 +1011,22 @@ Event.observe(window, 'load', function() {
                         }
                     <?php endif;?>
                         already_placing_order = true;
-
-                        var submitelement = $('onestepcheckout-place-order');
+						submitOsc($('onestepcheckout-form'), '<?php echo $this->getUrl('onestepcheckout/', array('_secure'=>true));?>', '<?php echo $this->__('Please wait, processing your order...'); ?>', '<img src="<?php echo $this->getSkinUrl('images/opc-ajax-loader.gif'); ?>" />');
+                        Event.stop(e);
+                        /*var submitelement = $('onestepcheckout-place-order');*/
                             /* Disable button to avoid multiple clicks */
-                            submitelement.removeClassName('orange').addClassName('grey');
+                           /* submitelement.removeClassName('orange').addClassName('grey');
                             submitelement.disabled = true;
 
                         var loaderelement = new Element('span').
                             addClassName('onestepcheckout-place-order-loading').
                             update('<?php echo $this->__('Please wait, processing your order...'); ?>');
 
-                        submitelement.parentNode.appendChild(loaderelement);
+                        submitelement.parentNode.appendChild(loaderelement);*/
 
-                        /* Submit the form */
-                        $('onestepcheckout-form').submit();
+                        /* Submit the form 
+                        $('onestepcheckout-form').submit();*/
+                        
                     }
                 }
             });
@@ -1160,7 +1161,7 @@ Event.observe(window, 'load', function() {
         if(euvatid !== null){
             euvatid.observe('change', get_save_billing_function(url_save_billing, url_set_methods, update_payments, true));
         }
-		
+
         triggers = ['<?php echo implode ('\',\'',$triggers)?>'];
         btriggered = [];
         striggered = [];
@@ -1206,11 +1207,6 @@ Event.observe(window, 'load', function() {
                     if(tagname === 'SELECT'){
                         clearTimeout(changeTimer);
                         changeTimer = setTimeout(bcallbackEvent, changeInterval, id);
-                        if(id == 'billing:country_id')
-                        {
-							get_save_billing_function(url_save_billing, url_set_methods, update_payments, batriggered)();
-							//get_separate_save_methods_function(url_set_methods, update_payments);
-						}
                     } else {
                         bcallbackEvent(id);
                     }
@@ -1226,11 +1222,6 @@ Event.observe(window, 'load', function() {
                     if(tagname === 'SELECT'){
                         clearTimeout(changeTimer);
                         changeTimer = setTimeout(scallbackEvent, changeInterval, id);
-                        if(id == 'shipping:country_id')
-                        {
-							get_save_billing_function(url_save_billing, url_set_methods, update_payments, satriggered)();
-							//get_separate_save_methods_function(url_set_methods, update_payments);
-						}
                     } else {
                         scallbackEvent(id);
                     }

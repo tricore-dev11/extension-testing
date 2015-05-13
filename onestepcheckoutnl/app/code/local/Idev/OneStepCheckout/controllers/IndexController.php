@@ -22,7 +22,7 @@ class Idev_OneStepCheckout_IndexController extends Mage_Core_Controller_Front_Ac
     }
 
     public function indexAction() {
-		
+
         $routeName = $this->getRequest()->getRouteName();
 
         if (!Mage::helper('onestepcheckout')->isRewriteCheckoutLinksEnabled() && $routeName != 'onestepcheckout'){
@@ -40,10 +40,10 @@ class Idev_OneStepCheckout_IndexController extends Mage_Core_Controller_Front_Ac
             $this->_redirect('checkout/cart');
             return;
         }
-		
+
         Mage::getSingleton('checkout/session')->setCartWasUpdated(false);
         Mage::getSingleton('customer/session')->setBeforeAuthUrl(Mage::getUrl('*/*/*', array('_secure'=>true)));
-		
+
         $this->loadLayout();
 
         if(Mage::helper('onestepcheckout')->isEnterprise() && Mage::helper('customer')->isLoggedIn()){
@@ -69,13 +69,7 @@ class Idev_OneStepCheckout_IndexController extends Mage_Core_Controller_Front_Ac
             $this->getLayout()->getBlock('before_body_end')
             ->append($googleOptimizer);
         }
-		/*if($_SERVER['REMOTE_ADDR'] == '122.169.99.128')
-		{
-			echo "<pre>AJAX : ";
-				print_r(Mage::getSingleton('checkout/type_onepage')->getQuote()->getShippingAddress()->getData());
-				print_r(Mage::getSingleton('checkout/type_onepage')->getQuote()->getBillingAddress()->getData());
-			exit;	
-		}*/
+
         $this->renderLayout();
     }
 

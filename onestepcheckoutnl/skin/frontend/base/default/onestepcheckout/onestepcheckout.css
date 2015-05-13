@@ -740,7 +740,7 @@ div.onestepcheckout-comments textarea {
     padding:10px;
     border:1px solid #333;
 }
-#addressreview {
+#addressreview, #paypaliframe_wrapper {
     width: 750px;
     min-height: 430px;
     -webkit-border-radius: 4px;
@@ -794,6 +794,20 @@ div.onestepcheckout-comments textarea {
 .agreement-content {
     overflow: auto;
     text-align:left;
+}
+.buttons-set {
+    clear: both;
+    margin: 0;
+    padding: 0;
+    border-top: none;
+    text-align: right;
+}
+.payment-buttons{
+    margin-top: 10px;
+    text-align: right;
+}
+.payment-buttons .small{
+    margin-left: 10px;
 }
 label.required:after, span.required:after {
     content: '' !important;
